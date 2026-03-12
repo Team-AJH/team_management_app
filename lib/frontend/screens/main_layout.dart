@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/theme_model.dart';
-import '../theme/app_theme.dart';
 import 'dashboard_page.dart';
 import 'notifications_page.dart';
 import 'roster_page.dart';

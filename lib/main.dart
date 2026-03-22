@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'backend/services/firebase/firebase_options.dart';
+
 import 'frontend/theme/theme_model.dart';
 import 'frontend/theme/app_theme.dart';
 import 'frontend/screens/login_page.dart';
@@ -8,8 +11,9 @@ import 'frontend/screens/main_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase initialization is commented out until the user configures it
-  // await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   
   runApp(
     ChangeNotifierProvider(

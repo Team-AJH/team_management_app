@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/app_user.dart';
+import '../../data/user_data.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final UserData _userData = UserData();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -14,16 +16,65 @@ class AuthService {
   Future<UserCredential> registerWithEmailAndPassword({
     required String email,
     required String password,
+    required String displayName,
   }) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+
+      final user = credential.user;
+
+      if (user == null) {
+        throw Exception('User registration failed. Please try again.');
+      }
+
+      final appUser = AppUser(
+        uid: user.uid,
+        email: email.trim(),
+        displayName: displayName.trim(),
+        status: 'active',
+        createdAt: DateTime.now(),
+      );
+
+      await _userData.createUser(appUser);
+
+      return credential;
+
     } on FirebaseAuthException catch(e) {
       throw _mapFirebaseAuthException(e);
     } catch(e) {
       throw Exception('An unknown error occurred: $e');
+    }
+  }
+
+  // Send verification email
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
+  // Reload user to get updated email verification status
+  Future<void> reloadUser() async {
+    await _auth.currentUser?.reload();
+  }
+
+  // Check if email is verified
+  bool isEmailVerified() {
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+  
+  // Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw _mapFirebaseAuthException(e);
+    } catch (e) {
+      throw Exception('An unexpected error occurred while sending reset email.');
     }
   }
 

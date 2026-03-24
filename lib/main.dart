@@ -7,6 +7,7 @@ import 'backend/services/firebase/firebase_options.dart';
 import 'frontend/theme/theme_model.dart';
 import 'frontend/theme/app_theme.dart';
 import 'frontend/screens/login_page.dart';
+import 'frontend/screens/register_page.dart';
 import 'frontend/screens/main_layout.dart';
 
 void main() async {
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
           initialRoute: '/',
           routes: {
             '/': (context) => const LoginPage(),
+            '/register': (context) => const RegisterPage(),
             '/dashboard': (context) => const MainLayout(),
           },
         );

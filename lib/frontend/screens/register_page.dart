@@ -17,8 +17,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<void> _register() async {
     // Basic validation
-    if (_emailController.text.trim().isEmpty || 
-        _passwordController.text.isEmpty || 
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty ||
         _displayNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all fields.')),
@@ -91,9 +91,9 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 8),
                 Text(
                   'Join the team management platform',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
@@ -146,7 +146,7 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
-  
+
   @override
   void dispose() {
     _emailController.dispose();

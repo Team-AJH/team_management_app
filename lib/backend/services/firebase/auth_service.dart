@@ -39,12 +39,12 @@ class AuthService {
       );
 
       await _userData.createUser(appUser);
+      await sendEmailVerification();
 
       return credential;
-
-    } on FirebaseAuthException catch(e) {
+    } on FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
-    } catch(e) {
+    } catch (e) {
       throw Exception('An unknown error occurred: $e');
     }
   }
@@ -66,7 +66,7 @@ class AuthService {
   bool isEmailVerified() {
     return _auth.currentUser?.emailVerified ?? false;
   }
-  
+
   // Send password reset email
   Future<void> sendPasswordResetEmail(String email) async {
     try {
@@ -74,7 +74,9 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       throw _mapFirebaseAuthException(e);
     } catch (e) {
-      throw Exception('An unexpected error occurred while sending reset email.');
+      throw Exception(
+        'An unexpected error occurred while sending reset email.',
+      );
     }
   }
 
@@ -100,7 +102,7 @@ class AuthService {
     await _auth.signOut();
   }
 
-  // map FirebaseAuthException to user-friendly messages 
+  // map FirebaseAuthException to user-friendly messages
   Exception _mapFirebaseAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'email-already-in-use':

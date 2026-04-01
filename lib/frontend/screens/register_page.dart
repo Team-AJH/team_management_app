@@ -11,6 +11,7 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
@@ -19,9 +20,17 @@ class _RegisterPageState extends State<RegisterPage> {
     // Basic validation
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.isEmpty ||
+        _confirmPasswordController.text.isEmpty ||
         _displayNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill out all fields.')),
+      );
+      return;
+    }
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Passwords do not match.')),
       );
       return;
     }
@@ -125,6 +134,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm Password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
@@ -151,6 +170,7 @@ class _RegisterPageState extends State<RegisterPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _displayNameController.dispose();
     super.dispose();
   }

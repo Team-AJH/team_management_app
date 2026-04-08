@@ -1,3 +1,4 @@
+//FINISHED
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/app_user.dart';
 import '../../data/user_data.dart';

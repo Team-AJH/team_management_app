@@ -1,3 +1,4 @@
+//Logic good, tweaks in attributes 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:team_management_app/backend/models/app_user.dart';
 import 'package:team_management_app/backend/models/Event.dart';
@@ -10,8 +11,6 @@ class Group {
   final String description;
   final String adminUid;
   final DateTime createdAt;
-  final List<AppUser> members;
-  final List<Event> events;
   final int paymentDueDate;
 
   Group({
@@ -20,8 +19,6 @@ class Group {
     required this.description,
     required this.adminUid,
     required this.createdAt,
-    required this.members,
-    this.events = const [],
     this.paymentDueDate = DEFAULT_PAYMENT_DUE_DATE,
   });
 
@@ -32,12 +29,6 @@ class Group {
       name: data['name'] ?? '',
       description: data['description'] ?? '',
       adminUid: data['adminUid'] ?? '',
-      members: data['members'] ?? [],
-      events: data['events'] != null
-          ? (data['events'] as List<dynamic>)
-                .map((event) => Event.fromMap(event, ''))
-                .toList()
-          : [],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -51,8 +42,6 @@ class Group {
       'name': name,
       'description': description,
       'adminUid': adminUid,
-      'members': members.map((member) => member.toMap()).toList(),
-      'events': events.map((event) => event.toMap()).toList(),
       'createdAt': createdAt,
       'paymentDueDate': paymentDueDate,
     };

@@ -1,3 +1,4 @@
+//FINISHED
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:team_management_app/backend/models/payment_tracker.dart';
 
@@ -88,18 +89,19 @@ class TrackerService {
 
   // function to create trackers for all users in a group for a specific month
   Future<void> createTrackersForGroup(String groupId, String billingMonth) async {
-    // 1. Corregido: Tu colección principal se llama 'group', no 'groups'
-    final groupSnapshot = await _db.collection('group').doc(groupId).get();
+    // Fetch all member documents from the 'members' subcollection of the group
+    final membersSnapshot = await _db
+        .collection('group')
+        .doc(groupId)
+        .collection('members')
+        .get();
+
+    if (membersSnapshot.docs.isEmpty) return;
     
-    if (!groupSnapshot.exists || groupSnapshot.data() == null) return;
-    
-    // 2. Corregido: En Firebase, 'members' se guarda como una lista de Mapas, no de Strings
-    final List<dynamic> usersList = groupSnapshot.data()!['members'] ?? [];
-    
-    for (var user in usersList) {
-      // Extraemos el sub-campo 'uid' del mapa del usuario. 
-      // (Si tu AppUser.toMap usa 'id' en lugar de 'uid', cámbialo aquí)
-      final String userUid = user['uid'] ?? ''; 
+    // Iterate through the subcollection documents. 
+    // Since the document IDs in the members subcollection are the UIDs, we use doc.id directly!
+    for (var doc in membersSnapshot.docs) {
+      final String userUid = doc.id;
       
       if (userUid.isNotEmpty) {
         await createTrackerDocument(userUid, groupId, billingMonth);

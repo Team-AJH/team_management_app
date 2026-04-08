@@ -7,12 +7,14 @@ enum Role {
 }
 
 class Member {
+  final String membershipId;
   final String userId;
   final String groupId;
   final Role role;
   final DateTime joinedAt;
 
   Member({
+    required this.membershipId,
     required this.userId,
     required this.groupId,
     required this.role,
@@ -22,6 +24,7 @@ class Member {
   // convert from firestore document to Member object
   factory Member.fromMap(Map<String, dynamic> data, String documentId) {
     return Member(
+      membershipId: documentId,
       userId: data['userId'] ?? '',
       groupId: data['groupId'] ?? '',
       role: data['role'] != null

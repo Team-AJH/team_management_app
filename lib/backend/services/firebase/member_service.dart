@@ -4,11 +4,12 @@ import 'package:team_management_app/backend/models/member.dart';
 class MemberService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Collection reference
-  CollectionReference<Map<String, dynamic>> get _membersCollection =>
-      _db.collection('members');
+  // Collection reference helper
+  CollectionReference<Map<String, dynamic>> getMembersCollection(String groupId) {
+    return _db.collection('group').doc(groupId).collection('members');
+  }
 
-  // Creates a new member document in the "members" collection.
+  // Creates a new member document in the "members" subcollection.
   Future<void> createMemberDocument(
     String userId,
     String groupId,
@@ -21,7 +22,7 @@ class MemberService {
       joinedAt: DateTime.now(),
     );
 
-    await _membersCollection.doc(userId).set(newMember.toMap());
+    await getMembersCollection(groupId).doc(userId).set(newMember.toMap());
   }
 
   // Create a member with Admin role
@@ -32,7 +33,7 @@ class MemberService {
     await createMemberDocument(userId, groupId, Role.admin);
   }
 
-  // Create a member with Member role
+  // Create a member with Member role 
   Future<void> createMemberDocumentWithMemberRole(
     String userId,
     String groupId,
@@ -50,7 +51,7 @@ class MemberService {
 
   //create function to retrieve the role of a user in a group
   Future<Role?> getRoleOfUserInGroup(String userId, String groupId) async {
-    final docSnapshot = await _membersCollection.doc(userId).get();
+    final docSnapshot = await getMembersCollection(groupId).doc(userId).get();
 
     if (docSnapshot.exists && docSnapshot.data() != null) {
       return Member.fromMap(docSnapshot.data()!, docSnapshot.id).role;

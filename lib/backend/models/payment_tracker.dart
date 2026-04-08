@@ -1,3 +1,4 @@
+//FINISHED
 enum PaymentStatus { pending, verified, rejected }
 
 class PaymentTracker {

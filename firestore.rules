@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Checks if the request is an authenticated user
+    function isAuthUser() {
+      return request.auth != null;
+    }
+
+    // Checks if the request is/has the same userUid
+    function isSameUser(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Checks if the user is a group Admin for a specific group
+    function isGroupAdmin(groupId) {
+      // Based on MemberService, 'members' is a root collection referencing the groupId, and role enum is 'admin'
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Checks if the user is a Payment Manager for a specific group
+    function isPaymentManager(groupId) {
+      // Based on MemberService, 'members' is a root collection referencing the groupId, and role enum is 'paymentManager'
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)).data.role == 'paymentManager';
+    }
+
+    // ----------------------------------------------------------------------
+    // Rules for the group collection and its subcollections
+    // ----------------------------------------------------------------------
+    match /group/{groupId} {
+      // Group metadata (name, description, paymentDueDate, adminUid, etc.)
+      
+      // Anyone authenticated can create a group, provided they set themselves as the adminUid.
+      allow create: if isAuthUser() && request.resource.data.adminUid == request.auth.uid;
+      
+      // Only existing members can view the group details.
+      allow read: if exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid));
+      
+      // Only group admins (checked natively against subcollection) can modify or delete the group.
+      allow update, delete: if isGroupAdmin(groupId);
+
+      // Subcollection: Members
+      match /members/{memberId} {
+        // Group members can read the member list to see who is in the group
+        allow read: if exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid));
+        
+        // Members CANNOT update their own roles or other members. ONLY admins can add/update/delete members.
+        // Exception for creation: when a user first builds a group, they are not an admin in the subcollection yet,
+        // so we must allow them to insert themselves IF they are the adminUid of the parent group document!
+        allow create: if isGroupAdmin(groupId) 
+                      || (isSameUser(memberId) && get(/databases/$(database)/documents/group/$(groupId)).data.adminUid == request.auth.uid);
+                      
+        allow update, delete: if isGroupAdmin(groupId);
+
+        allow delete: if isSameUser(memberId);
+      }
+    }
+    
+    // Rules for the users collection
+    match /users/{userId} {
+      // 1. Create: Must be authenticated and creating their own document.
+      // Cannot write 'uid'. They can initialize 'globalRole', but it must be strictly 'user'.
+      allow create: if isAuthUser() && isSameUser(userId)
+                    && (!('globalRole' in request.resource.data) || request.resource.data.globalRole == 'user')
+                    && !request.resource.data.keys().hasAny(['uid'])
+                    && request.resource.data.keys().hasOnly(['email', 'displayName', 'status', 'createdAt', 'globalRole']);
+                    
+      // 2. get: Can get their own document (email, displayName, status, etc.).
+      // NOTE: Firestore does not natively support field-level read exclusion. 
+      // Reading the document returns all fields in it, including globalRole.
+      allow get: if isAuthUser() && isSameUser(userId);
+      
+      // 3. Update: Can modify ONLY displayName and status of their own document.
+      // affectedKeys().hasOnly guarantees no other fields (e.g. globalRole) can be altered.
+      allow update: if isAuthUser() && isSameUser(userId) 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'status']);
+                    
+      // 4. Delete: Can delete their own document.
+      allow delete: if isAuthUser() && isSameUser(userId);
+    }
+  }
+}

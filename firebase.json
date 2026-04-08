@@ -1,1 +1,35 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"team-management-app-58b8d","configurations":{"web":"1:245749084229:web:0274ddf14d77213c6b332c"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "team-management-app-58b8d",
+          "configurations": {
+            "web": "1:245749084229:web:0274ddf14d77213c6b332c"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true
+    }
+  }
+}

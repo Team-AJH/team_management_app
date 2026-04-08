@@ -16,9 +16,14 @@ class AuthService {
   Future<UserCredential> registerWithEmailAndPassword({
     required String email,
     required String password,
+    required String confirmPassword,
     required String displayName,
   }) async {
     try {
+      if (password != confirmPassword) {
+        throw Exception('Passwords do not match.');
+      }
+
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,

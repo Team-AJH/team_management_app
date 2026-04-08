@@ -6,6 +6,8 @@ import 'notifications_page.dart';
 import 'roster_page.dart';
 import 'expenses_page.dart';
 
+import 'messages_page.dart';
+
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
 
@@ -18,6 +20,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   final List<Widget> _pages = [
     const DashboardPage(),
+    const MessagesPage(),
     const NotificationsPage(),
     const RosterPage(),
     const ExpensesPage(),
@@ -25,6 +28,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   final List<String> _titles = [
     'Dashboard',
+    'Messages',
     'Notifications',
     'Roster Management',
     'Team Expenses',
@@ -80,8 +84,8 @@ class _MainLayoutState extends State<MainLayout> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.notifications),
-              title: const Text('Notifications'),
+              leading: const Icon(Icons.message),
+              title: const Text('Messages'),
               selected: _selectedIndex == 1,
               onTap: () {
                 setState(() {
@@ -91,8 +95,8 @@ class _MainLayoutState extends State<MainLayout> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.group),
-              title: const Text('Roster Management'),
+              leading: const Icon(Icons.notifications),
+              title: const Text('Notifications'),
               selected: _selectedIndex == 2,
               onTap: () {
                 setState(() {
@@ -102,12 +106,23 @@ class _MainLayoutState extends State<MainLayout> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.attach_money),
-              title: const Text('Team Expenses'),
+              leading: const Icon(Icons.group),
+              title: const Text('Roster Management'),
               selected: _selectedIndex == 3,
               onTap: () {
                 setState(() {
                   _selectedIndex = 3;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_money),
+              title: const Text('Team Expenses'),
+              selected: _selectedIndex == 4,
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 4;
                 });
                 Navigator.pop(context);
               },

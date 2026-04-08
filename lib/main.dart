@@ -9,6 +9,7 @@ import 'frontend/theme/app_theme.dart';
 import 'frontend/screens/login_page.dart';
 import 'frontend/screens/register_page.dart';
 import 'frontend/screens/main_layout.dart';
+import 'backend/services/mock_payment_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,8 +18,11 @@ void main() async {
   );
   
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => ThemeModel(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeModel()),
+        ChangeNotifierProvider(create: (_) => MockPaymentService()),
+      ],
       child: const MyApp(),
     ),
   );

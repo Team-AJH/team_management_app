@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'roster_page.dart';
+import 'expenses_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
@@ -31,7 +33,7 @@ class DashboardPage extends StatelessWidget {
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
             childAspectRatio: 1.5,
-            children: const [
+            children: [
               _DashboardCard(
                 title: 'Next Game',
                 value: 'Saturday, 12:00 PM',
@@ -41,11 +43,27 @@ class DashboardPage extends StatelessWidget {
                 title: 'Active Players',
                 value: '18 / 20',
                 icon: Icons.group,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RosterPage(),
+                    ),
+                  );
+                },
               ),
               _DashboardCard(
                 title: 'Pending Dues',
                 value: '\$150.00',
                 icon: Icons.attach_money,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ExpensesPage(),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -85,19 +103,24 @@ class _DashboardCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
+  final VoidCallback? onTap;
 
   const _DashboardCard({
     required this.title,
     required this.value,
     required this.icon,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -122,6 +145,7 @@ class _DashboardCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

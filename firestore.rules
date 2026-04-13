@@ -13,19 +13,21 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Checks if the user is a member of the group
+    function isGroupMember(groupId) {
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid));
+    }
+
     // Checks if the user is a group Admin for a specific group
     function isGroupAdmin(groupId) {
-      // Based on MemberService, 'members' is a root collection referencing the groupId, and role enum is 'admin'
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)) &&
+      return isGroupMember(groupId) &&
              get(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Checks if the user is a Payment Manager for a specific group
     function isPaymentManager(groupId) {
-      // Based on MemberService, 'members' is a root collection referencing the groupId, and role enum is 'paymentManager'
-      return request.auth != null && 
-             exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)) &&
+      return isGroupMember(groupId) &&
              get(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid)).data.role == 'paymentManager';
     }
 
@@ -39,15 +41,24 @@ service cloud.firestore {
       allow create: if isAuthUser() && request.resource.data.adminUid == request.auth.uid;
       
       // Only existing members can view the group details.
-      allow read: if exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid));
+      allow read: if isGroupMember(groupId);
       
       // Only group admins (checked natively against subcollection) can modify or delete the group.
       allow update, delete: if isGroupAdmin(groupId);
 
+      // Subcollection: Events
+      match /events/{eventId} {
+        // All authenticated members of the group can read event information
+        allow read: if isGroupMember(groupId);
+        
+        // Only authenticated Group Admins can create, modify, or delete events
+        allow create, update, delete: if isGroupAdmin(groupId);
+      }
+
       // Subcollection: Members
       match /members/{memberId} {
         // Group members can read the member list to see who is in the group
-        allow read: if exists(/databases/$(database)/documents/group/$(groupId)/members/$(request.auth.uid));
+        allow read: if isGroupMember(groupId);
         
         // Members CANNOT update their own roles or other members. ONLY admins can add/update/delete members.
         // Exception for creation: when a user first builds a group, they are not an admin in the subcollection yet,
@@ -59,6 +70,38 @@ service cloud.firestore {
 
         allow delete: if isSameUser(memberId);
       }
+    }
+
+    // ----------------------------------------------------------------------
+    // Rules for Payment Trackers
+    // ----------------------------------------------------------------------
+    match /paymentTrackers/{trackerId} {
+      // Read: As previous, Only Admin and Payment Manager
+      allow read: if isGroupAdmin(resource.data.groupId) || isPaymentManager(resource.data.groupId);
+      
+      // Create: 
+      // 1. Authenticated member creating their *own* tracker with strict initial values
+      // 2. OR Group Admins/Payment Managers generating future trackers
+      allow create: if isAuthUser() && (
+                      (
+                        isGroupMember(request.resource.data.groupId) &&
+                        request.resource.data.userUid == request.auth.uid &&
+                        request.resource.data.paymentStatus == 'pending' &&
+                        request.resource.data.paymentDate == null
+                      ) ||
+                      (isGroupAdmin(request.resource.data.groupId) || isPaymentManager(request.resource.data.groupId))
+                    );
+      
+      // Update:
+      // Only Admin and Payment Manager can update status/dates.
+      // Immutable fields (userUid, groupId, billingMonth) are completely locked down.
+      allow update: if (isGroupAdmin(resource.data.groupId) || isPaymentManager(resource.data.groupId)) &&
+                    request.resource.data.userUid == resource.data.userUid &&
+                    request.resource.data.groupId == resource.data.groupId &&
+                    request.resource.data.billingMonth == resource.data.billingMonth;
+      
+      // Delete: NOBODY
+      allow delete: if false;
     }
     
     // Rules for the users collection

@@ -9,6 +9,7 @@ class Event {
   final DateTime createdAt;
   final int maxPlayers;
   final String status;
+  final String billingMonth;
 
   Event({
     required this.id,
@@ -21,6 +22,7 @@ class Event {
     required this.createdAt,
     required this.maxPlayers,
     required this.status,
+    required this.billingMonth,
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +37,7 @@ class Event {
       'createdAt': createdAt.toIso8601String(),
       'maxPlayers': maxPlayers,
       'status': status,
+      'billingMonth': billingMonth,
     };
   }
 
@@ -50,6 +53,7 @@ class Event {
       createdAt: DateTime.parse(map['createdAt']),
       maxPlayers: map['maxPlayers'] ?? 0,
       status: map['status'] ?? 'scheduled',
+      billingMonth: map['billingMonth'] ?? '',
     );
   }
 
@@ -94,6 +98,10 @@ class Event {
         status != 'cancelled' &&
         status != 'completed') {
       throw Exception('Invalid event status.');
+    }
+
+    if (billingMonth.trim().isEmpty) {
+      throw Exception('Billing month is required.');
     }
   }
 }

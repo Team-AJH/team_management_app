@@ -5,8 +5,8 @@ import 'dashboard_page.dart';
 import 'notifications_page.dart';
 import 'roster_page.dart';
 import 'expenses_page.dart';
-
 import 'messages_page.dart';
+import 'admin_dashboard_page.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -24,6 +24,7 @@ class _MainLayoutState extends State<MainLayout> {
     const NotificationsPage(),
     const RosterPage(),
     const ExpensesPage(),
+    const AdminDashboardPage(),
   ];
 
   final List<String> _titles = [
@@ -32,6 +33,7 @@ class _MainLayoutState extends State<MainLayout> {
     'Notifications',
     'Roster Management',
     'Team Expenses',
+    'Admin Dashboard',
   ];
 
   @override
@@ -123,6 +125,18 @@ class _MainLayoutState extends State<MainLayout> {
               onTap: () {
                 setState(() {
                   _selectedIndex = 4;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings),
+              title: const Text('Admin Dashboard'),
+              selected: _selectedIndex == 5,
+              onTap: () {
+                setState(() {
+                  _selectedIndex = 5;
                 });
                 Navigator.pop(context);
               },

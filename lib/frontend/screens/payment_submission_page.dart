@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../backend/models/transaction_model.dart';
-import '../../backend/services/mock_payment_service.dart';
+import '../../backend/repositories/transaction_repository.dart';
 
 class PaymentSubmissionPage extends StatefulWidget {
-  const PaymentSubmissionPage({super.key});
+  final String groupId;
+
+  const PaymentSubmissionPage({super.key, required this.groupId});
 
   @override
   State<PaymentSubmissionPage> createState() => _PaymentSubmissionPageState();
@@ -37,13 +39,14 @@ class _PaymentSubmissionPageState extends State<PaymentSubmissionPage> {
 
     try {
       final double amount = double.parse(_amountController.text);
-      final transaction = Transaction(
+      final transaction = TransactionModel(
         id: '', // Service handles id generation
+        groupId: widget.groupId,
         title: _titleController.text.trim(),
         amount: amount,
         date: DateTime.now(),
         isCollection: _isCollection,
-        payerPayee: _payerPayeeController.text.trim().isNotEmpty 
+        payerPayee: _payerPayeeController.text.trim().isNotEmpty
             ? _payerPayeeController.text.trim()
             : null,
         paymentLink: _linkController.text.trim().isNotEmpty
@@ -51,8 +54,8 @@ class _PaymentSubmissionPageState extends State<PaymentSubmissionPage> {
             : null,
       );
 
-      await Provider.of<MockPaymentService>(context, listen: false)
-          .submitPayment(transaction);
+      await Provider.of<TransactionRepository>(context, listen: false)
+          .createTransaction(transaction);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

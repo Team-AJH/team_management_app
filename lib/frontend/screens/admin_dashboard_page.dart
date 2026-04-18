@@ -1,22 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../backend/models/group.dart';
 import 'admin_group_dashboard_page.dart';
-
-// Currently using a local mock. In the future, this might be imported from models.
-class MockAdminGroup {
-  final String id;
-  final String name;
-  final String role;
-  final String? description;
-  final String? sport;
-
-  MockAdminGroup({
-    required this.id,
-    required this.name,
-    required this.role,
-    this.description,
-    this.sport,
-  });
-}
+import 'create_group_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
@@ -26,81 +13,77 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  final List<MockAdminGroup> managedGroups = [
-    MockAdminGroup(id: 'g1', name: 'Team Sharks', role: 'Head Coach'),
-    MockAdminGroup(id: 'g2', name: 'Team Shrimps', role: 'Assistant Coach'),
-    MockAdminGroup(id: 'g3', name: 'Team Dolphins', role: 'Organizer'),
-  ];
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  bool _isLoading = true;
+  List<Group> _managedGroups = [];
 
-  void _showCreateTeamDialog() {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final sportController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    _loadManagedGroups();
+  }
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Create New Team'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Team Name'),
-                    validator: (value) =>
-                        value == null || value.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) =>
-                        value == null || value.trim().isEmpty ? 'Required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: sportController,
-                    decoration: const InputDecoration(labelText: 'Sport'),
-                    validator: (value) =>
-                        value == null || value.trim().isEmpty ? 'Required' : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  setState(() {
-                    managedGroups.add(
-                      MockAdminGroup(
-                        id: 'g${managedGroups.length + 1}',
-                        name: nameController.text.trim(),
-                        role: 'Organizer', // Default role for creator
-                        description: descriptionController.text.trim(),
-                        sport: sportController.text.trim(),
-                      ),
-                    );
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+  Future<void> _loadManagedGroups() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final groupsSnapshot = await _firestore
+          .collection('groups')
+          .where('memberIds', arrayContains: user.uid)
+          .get();
+
+      List<Group> managed = [];
+      
+      for (var groupDoc in groupsSnapshot.docs) {
+        final groupId = groupDoc.id;
+        final memberDoc = await _firestore
+            .collection('groups')
+            .doc(groupId)
+            .collection('members')
+            .doc(user.uid)
+            .get();
+            
+        if (memberDoc.exists) {
+          final data = memberDoc.data();
+          final role = (data?['role'] as String?)?.toLowerCase() ?? 'member';
+          
+          if (role == 'admin' || role == 'organizer' || role == 'coach') {
+             managed.add(Group.fromMap(groupDoc.data()));
+          }
+        }
+      }
+      
+      if (mounted) {
+        setState(() {
+          _managedGroups = managed;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
+      }
+    }
+  }
+
+  void _showCreateTeamDialog() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const CreateGroupPage(),
+      ),
     );
+
+    if (result == true && mounted) {
+      _loadManagedGroups();
+    }
   }
 
   @override
@@ -134,91 +117,94 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 32),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: managedGroups.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final group = managedGroups[index];
-              return Card(
-                elevation: 2,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            AdminGroupDashboardPage(groupName: group.name),
-                      ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.group,
-                            color: Theme.of(context).primaryColor,
-                            size: 32,
-                          ),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_managedGroups.isEmpty)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Text('You do not manage any teams.'),
+            ))
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _managedGroups.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final group = _managedGroups[index];
+                return Card(
+                  elevation: 2,
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminGroupDashboardPage(group: group),
                         ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                group.name,
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                group.role,
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.grey[700]),
-                              ),
-                              if (group.sport != null || group.description != null) ...[
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).primaryColor.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.group,
+                              color: Theme.of(context).primaryColor,
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  group.name,
+                                  style: Theme.of(context).textTheme.titleLarge
+                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                ),
                                 const SizedBox(height: 4),
-                                if (group.sport != null)
-                                  Text(
-                                    'Sport: ${group.sport}',
-                                    style: Theme.of(context).textTheme.bodySmall,
+                                Text(
+                                  'Admin',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.grey[700]),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Sport: ${group.sportType}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                Text(
+                                  group.description,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    fontStyle: FontStyle.italic,
                                   ),
-                                if (group.description != null)
-                                  Text(
-                                    group.description!,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ],
-                            ],
+                            ),
                           ),
-                        ),
-                        const Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
+                          const Icon(Icons.chevron_right, color: Colors.grey),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
         ],
       ),
     );

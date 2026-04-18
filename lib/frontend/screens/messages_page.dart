@@ -1,146 +1,163 @@
 import 'package:flutter/material.dart';
-import '../../backend/services/chat_service.dart';
-import '../../backend/models/chat_group.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../backend/repositories/group_repository.dart';
+import '../../backend/repositories/user_repository.dart';
+import '../../backend/models/group.dart';
 import '../../backend/models/app_user.dart';
 import 'chat_page.dart';
-import 'create_group_page.dart';
+import 'direct_message_page.dart';
 
-class MessagesPage extends StatefulWidget {
+class MessagesPage extends StatelessWidget {
   const MessagesPage({super.key});
 
   @override
-  State<MessagesPage> createState() => _MessagesPageState();
-}
-
-class _MessagesPageState extends State<MessagesPage> {
-  final ChatService _chatService = ChatService();
-  List<AppUser> _allUsers = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUsers();
-  }
-
-  Future<void> _loadUsers() async {
-    final users = await _chatService.getAllUsers();
-    setState(() {
-      _allUsers = users.where((u) => u.uid != _chatService.currentUserId).toList();
-      _isLoading = false;
-    });
-  }
-
-  void _openChat(BuildContext context, {ChatGroup? group, AppUser? user}) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatPage(
-          chatService: _chatService,
-          group: group,
-          otherUser: user,
-        ),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Please sign in to view messages'));
     }
 
     return DefaultTabController(
       length: 2,
-      child: Column(
-        children: [
-          TabBar(
-            labelColor: Theme.of(context).primaryColor,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Theme.of(context).primaryColor,
-            tabs: const [
-              Tab(text: 'Groups'),
-              Tab(text: 'Direct Messages'),
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('Messages'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.group), text: 'Groups'),
+              Tab(icon: Icon(Icons.person), text: 'Direct'),
             ],
           ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _buildGroupsTab(),
-                _buildDMsTab(),
-              ],
-            ),
-          ),
-        ],
+        ),
+        body: TabBarView(
+          children: [
+            _GroupChatsTab(userId: user.uid),
+            _DirectChatsTab(currentUser: user),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildGroupsTab() {
-    return Stack(
-      children: [
-        StreamBuilder<List<ChatGroup>>(
-          stream: _chatService.getUserGroups(),
-          initialData: _chatService.currentGroups,
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            
-            final groups = snapshot.data!;
-            if (groups.isEmpty) {
-              return const Center(child: Text('No groups yet. Create one!'));
-            }
+// ── Group Chats Tab ────────────────────────────────────────────────────────
 
-            return ListView.builder(
-              itemCount: groups.length,
-              itemBuilder: (context, index) {
-                final group = groups[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    child: const Icon(Icons.group, color: Colors.white),
-                  ),
-                  title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${group.memberIds.length} members'),
-                  onTap: () => _openChat(context, group: group),
-                );
-              },
+class _GroupChatsTab extends StatelessWidget {
+  final String userId;
+  const _GroupChatsTab({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final groupRepo = Provider.of<GroupRepository>(context, listen: false);
+
+    return StreamBuilder<List<Group>>(
+      stream: groupRepo.getUserGroups(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final groups = snapshot.data ?? [];
+        if (groups.isEmpty) {
+          return const Center(
+            child: Text(
+              'No groups found.\nCreate or join a team to start chatting!',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
+        return ListView.separated(
+          itemCount: groups.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+          itemBuilder: (context, index) {
+            final group = groups[index];
+            return ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor,
+                child: const Icon(Icons.group, color: Colors.white),
+              ),
+              title: Text(group.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(
+                group.sportType.isNotEmpty ? group.sportType : 'Group Chat',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => ChatPage(group: group)),
+              ),
             );
           },
-        ),
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: FloatingActionButton(
-            heroTag: 'group_fab',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => CreateGroupPage(chatService: _chatService),
-                ),
-              );
-            },
-            child: const Icon(Icons.add),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
+}
 
-  Widget _buildDMsTab() {
-    // For DMs, we show the list of all users to simulate starting/resuming a chat.
-    return ListView.builder(
-      itemCount: _allUsers.length,
-      itemBuilder: (context, index) {
-        final user = _allUsers[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Colors.blueGrey,
-            child: Text(user.displayName.substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white)),
-          ),
-          title: Text(user.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(user.status),
-          onTap: () => _openChat(context, user: user),
+// ── Direct Chats Tab ───────────────────────────────────────────────────────
+
+class _DirectChatsTab extends StatelessWidget {
+  final User currentUser;
+  const _DirectChatsTab({required this.currentUser});
+
+  @override
+  Widget build(BuildContext context) {
+    final userRepo = Provider.of<UserRepository>(context, listen: false);
+
+    return FutureBuilder<List<AppUser>>(
+      future: userRepo.getKnownUsers(currentUser.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final users = snapshot.data ?? [];
+        if (users.isEmpty) {
+          return const Center(
+            child: Text(
+              'No contacts yet.\nJoin a group to discover teammates!',
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+
+        return ListView.separated(
+          itemCount: users.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+          itemBuilder: (context, index) {
+            final other = users[index];
+            final initial = other.displayName.isNotEmpty
+                ? other.displayName[0].toUpperCase()
+                : '?';
+
+            return ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(other.displayName,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: other.email.isNotEmpty ? Text(other.email) : null,
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DirectMessagePage(otherUser: other),
+                ),
+              ),
+            );
+          },
         );
       },
     );

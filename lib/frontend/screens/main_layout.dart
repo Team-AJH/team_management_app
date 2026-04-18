@@ -18,8 +18,14 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const DashboardPage(),
+  void _navigate(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  List<Widget> get _pages => [
+    DashboardPage(onNavigate: _navigate),
     const MessagesPage(),
     const NotificationsPage(),
     const RosterPage(),

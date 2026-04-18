@@ -14,6 +14,7 @@ class GroupManagementService {
     required String description,
     required String sportType,
     required DateTime createdAt,
+    required List<String> memberIds,
   }) {
     final group = Group(
       id: id,
@@ -21,6 +22,7 @@ class GroupManagementService {
       description: description,
       sportType: sportType,
       createdAt: createdAt,
+      memberIds: memberIds,
     );
 
     group.validate();
@@ -42,6 +44,7 @@ class GroupManagementService {
       description: description,
       sportType: sportType,
       createdAt: existingGroup.createdAt,
+      memberIds: existingGroup.memberIds,
     );
 
     updatedGroup.validate();

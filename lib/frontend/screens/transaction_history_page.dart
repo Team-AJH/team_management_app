@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../backend/models/transaction_model.dart';
-import '../../backend/services/mock_payment_service.dart';
+import '../../backend/repositories/transaction_repository.dart';
 
 class TransactionHistoryPage extends StatelessWidget {
-  const TransactionHistoryPage({super.key});
+  final String groupId;
+
+  const TransactionHistoryPage({super.key, required this.groupId});
 
   @override
   Widget build(BuildContext context) {
@@ -13,17 +15,24 @@ class TransactionHistoryPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Transaction History'),
       ),
-      body: Consumer<MockPaymentService>(
-        builder: (context, paymentService, child) {
-          final transactions = paymentService.transactions;
-          
+      body: StreamBuilder<List<TransactionModel>>(
+        stream: Provider.of<TransactionRepository>(context, listen: false)
+            .getGroupTransactions(groupId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final transactions = snapshot.data ?? [];
+
           if (transactions.isEmpty) {
             return const Center(child: Text('No transactions found.'));
           }
 
-          // Group by date to satisfy "By date and time"
-          // We'll iterate and show a simple list but sort descending with 
-          // date formatter to show exact time clearly.
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 16),
             itemCount: transactions.length,
@@ -38,7 +47,7 @@ class TransactionHistoryPage extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionTile(BuildContext context, Transaction txn) {
+  Widget _buildTransactionTile(BuildContext context, TransactionModel txn) {
     final dateFormatter = DateFormat('MMM d, yyyy  •  h:mm a');
     final amountStyle = TextStyle(
       fontWeight: FontWeight.bold,
@@ -49,7 +58,7 @@ class TransactionHistoryPage extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       leading: CircleAvatar(
-        backgroundColor: txn.isCollection 
+        backgroundColor: txn.isCollection
             ? Colors.green.withValues(alpha: 0.1)
             : Colors.red.withValues(alpha: 0.1),
         child: Icon(
@@ -65,12 +74,12 @@ class TransactionHistoryPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          if (txn.payerPayee != null)
+          if (txn.payerPayee != null && txn.payerPayee!.isNotEmpty)
             Text(
               txn.isCollection ? 'From: ${txn.payerPayee}' : 'To: ${txn.payerPayee}',
             ),
           Text(dateFormatter.format(txn.date), style: const TextStyle(fontSize: 12)),
-          if (txn.paymentLink != null) ...[
+          if (txn.paymentLink != null && txn.paymentLink!.isNotEmpty) ...[
             const SizedBox(height: 4),
             Row(
               children: [
@@ -92,7 +101,7 @@ class TransactionHistoryPage extends StatelessWidget {
         '${txn.isCollection ? '+' : '-'}\$${txn.amount.toStringAsFixed(2)}',
         style: amountStyle,
       ),
-      isThreeLine: txn.paymentLink != null,
+      isThreeLine: txn.paymentLink != null && txn.paymentLink!.isNotEmpty,
     );
   }
 }

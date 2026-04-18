@@ -14,7 +14,7 @@ skills-lock.json
 firebase.json
 .firebase/
 .firebaserc
-
+ref/
 
 # Flutter repo-specific
 /bin/cache/

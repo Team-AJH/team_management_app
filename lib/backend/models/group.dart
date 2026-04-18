@@ -4,6 +4,7 @@ class Group {
   final String description;
   final String sportType;
   final DateTime createdAt;
+  final List<String> memberIds;
 
   Group({
     required this.id,
@@ -11,6 +12,7 @@ class Group {
     required this.description,
     required this.sportType,
     required this.createdAt,
+    required this.memberIds,
   });
 
   Map<String, dynamic> toMap() {
@@ -20,6 +22,7 @@ class Group {
       'description': description,
       'sportType': sportType,
       'createdAt': createdAt.toIso8601String(),
+      'memberIds': memberIds,
     };
   }
 
@@ -30,6 +33,7 @@ class Group {
       description: map['description'] ?? '',
       sportType: map['sportType'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
+      memberIds: List<String>.from(map['memberIds'] ?? []),
     );
   }
 

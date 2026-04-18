@@ -41,10 +41,11 @@ class _RegisterPageState extends State<RegisterPage> {
       await _authService.registerWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
+        confirmPassword: _confirmPasswordController.text,
         displayName: _displayNameController.text,
       );
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -154,7 +155,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/');
+                    Navigator.pop(context);
                   },
                   child: const Text('Already have an account? Sign In'),
                 ),

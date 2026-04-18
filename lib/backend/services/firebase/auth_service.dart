@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../models/app_user.dart';
 import '../../data/user_data.dart';
 
@@ -11,6 +12,14 @@ class AuthService {
 
   // Listen to auth state changes
   Stream<User?> get userChanges => _auth.userChanges();
+
+  // Call once at app startup — on web, restrict persistence to the browser
+  // session so no token is stored in long-lived localStorage/IndexedDB.
+  static Future<void> configurePersistence() async {
+    if (kIsWeb) {
+      await FirebaseAuth.instance.setPersistence(Persistence.SESSION);
+    }
+  }
 
   // Register with email and password
   Future<UserCredential> registerWithEmailAndPassword({
@@ -102,8 +111,14 @@ class AuthService {
     }
   }
 
-  // Sign out
+  // Sign out — clears all stored credentials so the user is never
+  // auto-logged-in on the next app launch / page load.
   Future<void> signOut() async {
+    if (kIsWeb) {
+      // Drop persistence to NONE before signing out so the SDK immediately
+      // removes any cached token from session/local storage.
+      await _auth.setPersistence(Persistence.NONE);
+    }
     await _auth.signOut();
   }
 

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../../backend/services/mock_payment_service.dart';
+import '../../backend/repositories/group_repository.dart';
+import '../../backend/repositories/transaction_repository.dart';
+import '../../backend/models/transaction_model.dart';
+import '../../backend/models/group.dart';
 import 'payment_submission_page.dart';
 import 'transaction_history_page.dart';
 
@@ -10,169 +14,210 @@ class ExpensesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Please sign in to view team expenses'));
+    }
+
+    final groupRepo = Provider.of<GroupRepository>(context, listen: false);
+
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Team Payments',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PaymentSubmissionPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Record Payment'),
-              ),
-            ],
+          Text(
+            'Team Payments',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 24),
-          Consumer<MockPaymentService>(
-            builder: (context, paymentService, child) {
-              return Row(
+          Expanded(
+            child: StreamBuilder<List<Group>>(
+              stream: groupRepo.getUserGroups(user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final groups = snapshot.data ?? [];
+                if (groups.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'You are not part of any group yet.\nCreate or join a group to manage expenses.',
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  itemCount: groups.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    return _GroupExpensesCard(group: groups[index]);
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupExpensesCard extends StatelessWidget {
+  final Group group;
+
+  const _GroupExpensesCard({required this.group});
+
+  @override
+  Widget build(BuildContext context) {
+    final txnRepo = Provider.of<TransactionRepository>(context, listen: false);
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group.name,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (group.sportType.isNotEmpty)
+                        Text(
+                          group.sportType,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_shopping_cart),
+                  tooltip: 'Record Payment',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaymentSubmissionPage(groupId: group.id),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 24),
+
+          // ── Recent Transactions ─────────────────────────────────────────
+          StreamBuilder<List<TransactionModel>>(
+            stream: txnRepo.getRecentTransactions(group.id, limit: 3),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final recent = snapshot.data ?? [];
+
+              if (recent.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Text(
+                    'No transactions yet. Tap ＋ to record one.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Card(
-                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Total Collected',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '\$${paymentService.totalCollected.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      'Recent Transactions',
+                      style: Theme.of(context).textTheme.labelLarge,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Total Expenses',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '\$${paymentService.totalExpenses.toStringAsFixed(2)}',
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.amber[700],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                  ...recent.map((txn) => _TransactionRow(txn: txn)),
                 ],
               );
             },
           ),
-          const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent Transactions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+
+          // ── View All button ─────────────────────────────────────────────
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('View All Transactions'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TransactionHistoryPage(groupId: group.id),
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const TransactionHistoryPage(),
-                    ),
-                  );
-                },
-                child: const Text('View Full History'),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransactionRow extends StatelessWidget {
+  final TransactionModel txn;
+  const _TransactionRow({required this.txn});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = txn.isCollection ? Colors.green : Colors.red;
+    final sign  = txn.isCollection ? '+' : '-';
+    final date  = DateFormat('MMM d, yyyy').format(txn.date);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: color.withValues(alpha: 0.12),
+            child: Icon(
+              txn.isCollection ? Icons.arrow_downward : Icons.arrow_upward,
+              size: 16,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Consumer<MockPaymentService>(
-               builder: (context, paymentService, child) {
-                 final transactions = paymentService.transactions.take(5).toList(); // Show only top 5
-
-                 if (transactions.isEmpty) {
-                   return const Card(
-                     child: Center(
-                       child: Text('No recent transactions.'),
-                     )
-                   );
-                 }
-
-                 return Card(
-                  child: ListView.separated(
-                    itemCount: transactions.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final txn = transactions[index];
-                      final dateFormatter = DateFormat('MMM d');
-                      
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 8,
-                        ),
-                        leading: CircleAvatar(
-                          backgroundColor: txn.isCollection 
-                              ? Colors.green.withValues(alpha: 0.1)
-                              : Colors.red.withValues(alpha: 0.1),
-                          child: Icon(
-                            txn.isCollection ? Icons.arrow_downward : Icons.arrow_upward,
-                            color: txn.isCollection ? Colors.green : Colors.red,
-                          ),
-                        ),
-                        title: Text(txn.title),
-                        subtitle: Text(
-                          txn.payerPayee != null ? (txn.isCollection ? 'From: ${txn.payerPayee}' : 'To: ${txn.payerPayee}') : dateFormatter.format(txn.date),
-                        ),
-                        trailing: Text(
-                          '${txn.isCollection ? '+' : '-'}\$${txn.amount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: txn.isCollection ? Colors.green : Colors.red,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                );
-               } 
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(txn.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(date, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+          Text(
+            '$sign\$${txn.amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],

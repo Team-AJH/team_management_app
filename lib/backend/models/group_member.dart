@@ -51,7 +51,7 @@ class GroupMember {
     }
   }
 
-  bool isAdmin() => role == 'admin';
+  bool isAdmin() => role.toLowerCase() == 'admin';
 
-  bool isMember() => role == 'member' || role == 'admin';
+  bool isMember() => role.toLowerCase() == 'member' || role.toLowerCase() == 'admin';
 }

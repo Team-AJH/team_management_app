@@ -1,19 +1,35 @@
 import 'package:flutter/material.dart';
-import 'roster_page.dart';
-import 'expenses_page.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import '../../backend/repositories/group_repository.dart';
+import '../../backend/repositories/event_repository.dart';
+import '../../backend/repositories/tracker_repository.dart';
+import '../../backend/models/group.dart';
+import '../../backend/models/event.dart';
+import '../../backend/models/group_member.dart';
+import '../../backend/models/payment_tracker.dart';
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+  final Function(int)? onNavigate;
+  const DashboardPage({super.key, this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text("Please sign in to view dashboard"));
+    }
+
+    final groupRepo = Provider.of<GroupRepository>(context, listen: false);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Welcome, Coach',
+            'Welcome, ${user.displayName ?? "Coach"}',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
@@ -26,47 +42,110 @@ class DashboardPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 32),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.5,
-            children: [
-              _DashboardCard(
-                title: 'Next Game',
-                value: 'Saturday, 12:00 PM',
-                icon: Icons.calendar_month,
-              ),
-              _DashboardCard(
-                title: 'Active Players',
-                value: '18 / 20',
-                icon: Icons.group,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RosterPage(),
-                    ),
-                  );
-                },
-              ),
-              _DashboardCard(
-                title: 'Pending Dues',
-                value: '\$150.00',
-                icon: Icons.attach_money,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ExpensesPage(),
-                    ),
-                  );
-                },
-              ),
-            ],
+          StreamBuilder<List<Group>>(
+            stream: groupRepo.getUserGroups(user.uid),
+            builder: (context, groupSnapshot) {
+              if (groupSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              
+              final groups = groupSnapshot.data ?? [];
+              if (groups.isEmpty) {
+                return const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: Text("You are not part of any group yet.\nPlease join or create a team.")),
+                  ),
+                );
+              }
+              
+              // We pick the first group for the dashboard summary
+              final group = groups.first;
+
+              return Column(
+                children: [
+                   GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.5,
+                    children: [
+                      // Next Game
+                      StreamBuilder<List<Event>>(
+                        stream: Provider.of<EventRepository>(context, listen: false).getEventsForGroup(group.id),
+                        builder: (context, eventSnap) {
+                          String nextGameValue = 'No Upcoming Events';
+                          if (eventSnap.hasData && eventSnap.data!.isNotEmpty) {
+                            final now = DateTime.now();
+                            final upcoming = eventSnap.data!.where((e) => e.eventDate.isAfter(now)).toList();
+                            if (upcoming.isNotEmpty) {
+                              upcoming.sort((a, b) => a.eventDate.compareTo(b.eventDate));
+                              nextGameValue = DateFormat('EEE, h:mm a').format(upcoming.first.eventDate);
+                            }
+                          }
+                          return _DashboardCard(
+                            title: 'Next Event',
+                            value: nextGameValue,
+                            icon: Icons.calendar_month,
+                          );
+                        }
+                      ),
+                      
+                      // Active Players
+                      StreamBuilder<List<GroupMember>>(
+                        stream: Provider.of<GroupRepository>(context, listen: false).getGroupMembers(group.id),
+                        builder: (context, memberSnap) {
+                          String playersValue = '0';
+                          if (memberSnap.hasData) {
+                            final activeCount = memberSnap.data!.length;
+                            playersValue = '$activeCount / ${memberSnap.data!.length}';
+                          }
+                          return _DashboardCard(
+                            title: 'Active Players',
+                            value: playersValue,
+                            icon: Icons.group,
+                            onTap: () {
+                              if (onNavigate != null) {
+                                onNavigate!(3); // Index 3 is Roster Management
+                              }
+                            },
+                          );
+                        }
+                      ),
+                      
+                      // Pending Dues
+                      StreamBuilder<List<PaymentTracker>>(
+                        stream: Provider.of<TrackerRepository>(context, listen: false).getTrackersForGroup(group.id),
+                        builder: (context, trackerSnap) {
+                          String pendingValue = '0';
+                          if (trackerSnap.hasData) {
+                            final currentMonth = PaymentTracker.getCurrentMonthKey();
+                            final pendingCount = trackerSnap.data!
+                                .where((t) => t.billingMonth == currentMonth && t.paymentStatus == PaymentStatus.pending)
+                                .length;
+                            pendingValue = '$pendingCount Users';
+                          }
+                          return _DashboardCard(
+                            title: 'Pending Monthly',
+                            value: pendingValue,
+                            icon: Icons.attach_money,
+                            onTap: () {
+                              if (onNavigate != null) {
+                                onNavigate!(4); // Index 4 is Team Expenses
+                              }
+                            },
+                          );
+                        }
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
           ),
+          
           const SizedBox(height: 32),
           Text(
             'Recent Notifications',
@@ -86,8 +165,8 @@ class DashboardPage extends StatelessWidget {
                   leading: const CircleAvatar(
                     child: Icon(Icons.notifications),
                   ),
-                  title: Text('Practice Time Changed - Day $index'),
-                  subtitle: const Text('Practice moved to 5:00 PM due to weather constraints.'),
+                  title: Text('Welcome to Team Management! - Day $index'),
+                  subtitle: const Text('Ensure you start taking advantage of tracking payments and events.'),
                   trailing: const Text('2h ago'),
                 );
               },
@@ -133,6 +212,7 @@ class _DashboardCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -142,6 +222,7 @@ class _DashboardCard extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

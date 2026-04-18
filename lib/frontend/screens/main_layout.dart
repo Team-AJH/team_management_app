@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../backend/services/firebase/auth_service.dart';
 import '../theme/theme_model.dart';
 import 'dashboard_page.dart';
 import 'notifications_page.dart';
@@ -147,6 +149,18 @@ class _MainLayoutState extends State<MainLayout> {
                 Navigator.pop(context);
               },
             ),
+            const Spacer(),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                Navigator.pop(context); // close drawer first
+                await AuthService().signOut();
+                // AuthWrapper in main.dart will automatically redirect to LoginPage
+              },
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

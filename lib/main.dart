@@ -21,6 +21,7 @@ import 'backend/repositories/user_repository.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await AuthService.configurePersistence();
 
   runApp(
     MultiProvider(

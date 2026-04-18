@@ -11,6 +11,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   final _authService = AuthService();
   bool _isLoading = false;
 
@@ -47,6 +48,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -98,6 +100,10 @@ class _LoginPageState extends State<LoginPage> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) {
+                    FocusScope.of(context).requestFocus(_passwordFocusNode);
+                  },
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email_outlined),
@@ -107,7 +113,10 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
+                  focusNode: _passwordFocusNode,
                   obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _login(),
                   decoration: const InputDecoration(
                     labelText: 'Password',
                     prefixIcon: Icon(Icons.lock_outline),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../backend/repositories/group_repository.dart';
 import '../../backend/repositories/event_repository.dart';
@@ -28,18 +29,35 @@ class DashboardPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Welcome, ${user.displayName ?? "Coach"}',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+          FutureBuilder<DocumentSnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get(),
+            builder: (context, snapshot) {
+              String name = "Coach";
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                if (data != null &&
+                    data['displayName'] != null &&
+                    data['displayName'].toString().trim().isNotEmpty) {
+                  name = data['displayName'];
+                }
+              }
+              return Text(
+                'Welcome, $name',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              );
+            },
           ),
           const SizedBox(height: 8),
           Text(
             'Here is the status of your team for this week.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 32),
           StreamBuilder<List<Group>>(
@@ -48,23 +66,27 @@ class DashboardPage extends StatelessWidget {
               if (groupSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               final groups = groupSnapshot.data ?? [];
               if (groups.isEmpty) {
                 return const Card(
                   child: Padding(
                     padding: EdgeInsets.all(32.0),
-                    child: Center(child: Text("You are not part of any group yet.\nPlease join or create a team.")),
+                    child: Center(
+                      child: Text(
+                        "You are not part of any group yet.\nPlease join or create a team.",
+                      ),
+                    ),
                   ),
                 );
               }
-              
+
               // We pick the first group for the dashboard summary
               final group = groups.first;
 
               return Column(
                 children: [
-                   GridView.count(
+                  GridView.count(
                     crossAxisCount: 3,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -74,15 +96,24 @@ class DashboardPage extends StatelessWidget {
                     children: [
                       // Next Game
                       StreamBuilder<List<Event>>(
-                        stream: Provider.of<EventRepository>(context, listen: false).getEventsForGroup(group.id),
+                        stream: Provider.of<EventRepository>(
+                          context,
+                          listen: false,
+                        ).getEventsForGroup(group.id),
                         builder: (context, eventSnap) {
                           String nextGameValue = 'No Upcoming Events';
                           if (eventSnap.hasData && eventSnap.data!.isNotEmpty) {
                             final now = DateTime.now();
-                            final upcoming = eventSnap.data!.where((e) => e.eventDate.isAfter(now)).toList();
+                            final upcoming = eventSnap.data!
+                                .where((e) => e.eventDate.isAfter(now))
+                                .toList();
                             if (upcoming.isNotEmpty) {
-                              upcoming.sort((a, b) => a.eventDate.compareTo(b.eventDate));
-                              nextGameValue = DateFormat('EEE, h:mm a').format(upcoming.first.eventDate);
+                              upcoming.sort(
+                                (a, b) => a.eventDate.compareTo(b.eventDate),
+                              );
+                              nextGameValue = DateFormat(
+                                'EEE, h:mm a',
+                              ).format(upcoming.first.eventDate);
                             }
                           }
                           return _DashboardCard(
@@ -90,20 +121,22 @@ class DashboardPage extends StatelessWidget {
                             value: nextGameValue,
                             icon: Icons.calendar_month,
                           );
-                        }
+                        },
                       ),
-                      
-                      // Active Players
+
+                      // Total Players
                       StreamBuilder<List<GroupMember>>(
-                        stream: Provider.of<GroupRepository>(context, listen: false).getGroupMembers(group.id),
+                        stream: Provider.of<GroupRepository>(
+                          context,
+                          listen: false,
+                        ).getGroupMembers(group.id),
                         builder: (context, memberSnap) {
                           String playersValue = '0';
                           if (memberSnap.hasData) {
-                            final activeCount = memberSnap.data!.length;
-                            playersValue = '$activeCount / ${memberSnap.data!.length}';
+                            playersValue = '${memberSnap.data!.length}';
                           }
                           return _DashboardCard(
-                            title: 'Active Players',
+                            title: 'Total Players',
                             value: playersValue,
                             icon: Icons.group,
                             onTap: () {
@@ -112,23 +145,31 @@ class DashboardPage extends StatelessWidget {
                               }
                             },
                           );
-                        }
+                        },
                       ),
-                      
+
                       // Pending Dues
                       StreamBuilder<List<PaymentTracker>>(
-                        stream: Provider.of<TrackerRepository>(context, listen: false).getTrackersForGroup(group.id),
+                        stream: Provider.of<TrackerRepository>(
+                          context,
+                          listen: false,
+                        ).getTrackersForGroup(group.id),
                         builder: (context, trackerSnap) {
                           String pendingValue = '0';
                           if (trackerSnap.hasData) {
-                            final currentMonth = PaymentTracker.getCurrentMonthKey();
+                            final currentMonth =
+                                PaymentTracker.getCurrentMonthKey();
                             final pendingCount = trackerSnap.data!
-                                .where((t) => t.billingMonth == currentMonth && t.paymentStatus == PaymentStatus.pending)
+                                .where(
+                                  (t) =>
+                                      t.billingMonth == currentMonth &&
+                                      t.paymentStatus == PaymentStatus.pending,
+                                )
                                 .length;
                             pendingValue = '$pendingCount Users';
                           }
                           return _DashboardCard(
-                            title: 'Pending Monthly',
+                            title: 'Pending Payments',
                             value: pendingValue,
                             icon: Icons.attach_money,
                             onTap: () {
@@ -137,21 +178,21 @@ class DashboardPage extends StatelessWidget {
                               }
                             },
                           );
-                        }
+                        },
                       ),
                     ],
                   ),
                 ],
               );
-            }
+            },
           ),
-          
+
           const SizedBox(height: 32),
           Text(
             'Recent Notifications',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           Card(
@@ -162,11 +203,11 @@ class DashboardPage extends StatelessWidget {
               separatorBuilder: (context, index) => const Divider(),
               itemBuilder: (context, index) {
                 return ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.notifications),
-                  ),
+                  leading: const CircleAvatar(child: Icon(Icons.notifications)),
                   title: Text('Welcome to Team Management! - Day $index'),
-                  subtitle: const Text('Ensure you start taking advantage of tracking payments and events.'),
+                  subtitle: const Text(
+                    'Ensure you start taking advantage of tracking payments and events.',
+                  ),
                   trailing: const Text('2h ago'),
                 );
               },
@@ -200,33 +241,33 @@ class _DashboardCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 24, color: Theme.of(context).primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 24, color: Theme.of(context).primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+                ],
               ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

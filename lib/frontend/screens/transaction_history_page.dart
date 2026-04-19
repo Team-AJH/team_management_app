@@ -33,14 +33,62 @@ class TransactionHistoryPage extends StatelessWidget {
             return const Center(child: Text('No transactions found.'));
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            itemCount: transactions.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final txn = transactions[index];
-              return _buildTransactionTile(context, txn);
-            },
+          double totalCollected = 0.0;
+          double totalExpenses = 0.0;
+          for (var txn in transactions) {
+            if (txn.isCollection) {
+              totalCollected += txn.amount;
+            } else {
+              totalExpenses += txn.amount;
+            }
+          }
+          final balance = totalCollected - totalExpenses;
+          final isPositive = balance >= 0;
+
+          return Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+                child: Column(
+                  children: [
+                    Text(
+                      'Total Balance',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${isPositive ? "" : "-"}\$${balance.abs().toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: isPositive ? Colors.green[700] : Colors.red[700],
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('Collected: \$${totalCollected.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[600])),
+                        const SizedBox(width: 16),
+                        Text('Expenses: \$${totalExpenses.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  itemCount: transactions.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final txn = transactions[index];
+                    return _buildTransactionTile(context, txn);
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),

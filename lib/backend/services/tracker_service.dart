@@ -7,18 +7,22 @@ class TrackerService {
   TrackerService({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _trackersCollection =>
-      _firestore.collection('paymentTrackers');
+  CollectionReference<Map<String, dynamic>> _trackersCollection(String groupId) =>
+      _firestore.collection('groups').doc(groupId).collection('paymentTrackers');
 
   Future<PaymentTracker> createTrackerDocument({
     required String uid,
     required String groupId,
     required String billingMonth,
+    String? transactionId,
+    double amountDue = 0.0,
+    TrackerType type = TrackerType.monthlyDues,
   }) async {
     final trackerId = PaymentTracker.buildTrackerId(
       userUid: uid,
       groupId: groupId,
       billingMonth: billingMonth,
+      transactionId: transactionId,
     );
 
     final tracker = PaymentTracker(
@@ -27,16 +31,19 @@ class TrackerService {
       groupId: groupId,
       paymentStatus: PaymentStatus.pending,
       paymentDate: null,
+      type: type,
       billingMonth: billingMonth,
+      transactionId: transactionId,
+      amountDue: amountDue,
     );
 
-    await _trackersCollection.doc(trackerId).set(tracker.toMap());
+    await _trackersCollection(groupId).doc(trackerId).set(tracker.toMap());
 
     return tracker;
   }
 
-  Future<PaymentTracker?> getTrackerDocument(String trackerId) async {
-    final doc = await _trackersCollection.doc(trackerId).get();
+  Future<PaymentTracker?> getTrackerDocument(String groupId, String trackerId) async {
+    final doc = await _trackersCollection(groupId).doc(trackerId).get();
 
     if (!doc.exists || doc.data() == null) {
       return null;
@@ -46,17 +53,22 @@ class TrackerService {
   }
 
   Future<void> updateTrackerDocument({
+    required String groupId,
     required String trackerId,
     required Map<String, dynamic> dataToUpdate,
   }) async {
-    await _trackersCollection.doc(trackerId).update(dataToUpdate);
+    await _trackersCollection(groupId).doc(trackerId).update(dataToUpdate);
   }
 
-  Future<void> deleteTrackerDocument(String trackerId) async {
-    await _trackersCollection.doc(trackerId).delete();
+  Future<void> deleteTrackerDocument({
+    required String groupId,
+    required String trackerId,
+  }) async {
+    await _trackersCollection(groupId).doc(trackerId).delete();
   }
 
   Future<void> updatePaymentStatus({
+    required String groupId,
     required String trackerId,
     required PaymentStatus status,
   }) async {
@@ -67,16 +79,29 @@ class TrackerService {
           : null,
     };
 
-    await _trackersCollection.doc(trackerId).update(updateData);
+    await _trackersCollection(groupId).doc(trackerId).update(updateData);
   }
 
   Future<List<PaymentTracker>> getTrackersByGroupAndMonth({
     required String groupId,
     required String billingMonth,
   }) async {
-    final snapshot = await _trackersCollection
-        .where('groupId', isEqualTo: groupId)
+    final snapshot = await _trackersCollection(groupId)
         .where('billingMonth', isEqualTo: billingMonth)
+        .orderBy('userUid') // Can remove grouping where clause since it's subcollection
+        .get();
+
+    return snapshot.docs
+        .map((doc) => PaymentTracker.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+  
+  Future<List<PaymentTracker>> getTrackersForTransaction({
+    required String groupId,
+    required String transactionId,
+  }) async {
+    final snapshot = await _trackersCollection(groupId)
+        .where('transactionId', isEqualTo: transactionId)
         .orderBy('userUid')
         .get();
 
@@ -89,6 +114,9 @@ class TrackerService {
     required List<String> memberUids,
     required String groupId,
     required String billingMonth,
+    String? transactionId,
+    double amountDue = 0.0,
+    TrackerType type = TrackerType.monthlyDues,
   }) async {
     final batch = _firestore.batch();
 
@@ -97,6 +125,7 @@ class TrackerService {
         userUid: uid,
         groupId: groupId,
         billingMonth: billingMonth,
+        transactionId: transactionId,
       );
 
       final tracker = PaymentTracker(
@@ -105,10 +134,13 @@ class TrackerService {
         groupId: groupId,
         paymentStatus: PaymentStatus.pending,
         paymentDate: null,
+        type: type,
         billingMonth: billingMonth,
+        transactionId: transactionId,
+        amountDue: amountDue,
       );
 
-      batch.set(_trackersCollection.doc(trackerId), tracker.toMap());
+      batch.set(_trackersCollection(groupId).doc(trackerId), tracker.toMap());
     }
 
     await batch.commit();

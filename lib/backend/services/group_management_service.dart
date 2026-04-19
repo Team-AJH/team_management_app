@@ -75,8 +75,17 @@ class GroupManagementService {
     required String groupId,
     required String displayName,
     required DateTime joinedAt,
+    required List<GroupMember> existingMembers,
   }) {
     _permissionsService.enforceCanManageGroup(actingMember);
+
+    final alreadyMember = existingMembers.any(
+      (member) => member.userId == userId,
+    );
+
+    if (alreadyMember) {
+      throw Exception('User is already a member of this group.');
+    }
 
     final member = GroupMember(
       userId: userId,

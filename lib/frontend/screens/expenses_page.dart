@@ -28,9 +28,9 @@ class ExpensesPage extends StatelessWidget {
         children: [
           Text(
             'Team Payments',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -101,6 +101,49 @@ class _GroupExpensesCard extends StatelessWidget {
                           group.sportType,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
+                      const SizedBox(height: 12),
+                      StreamBuilder<List<TransactionModel>>(
+                        stream: txnRepo.getGroupTransactions(group.id),
+                        builder: (context, snapshot) {
+                          double totalCollected = 0.0;
+                          double totalExpenses = 0.0;
+
+                          if (snapshot.hasData) {
+                            for (var txn in snapshot.data!) {
+                              if (txn.isCollection) {
+                                totalCollected += txn.amount;
+                              } else {
+                                totalExpenses += txn.amount;
+                              }
+                            }
+                          }
+
+                          final balance = totalCollected - totalExpenses;
+                          final isPositive = balance >= 0;
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total Balance: ${isPositive ? "" : "-"}\$${balance.abs().toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(
+                                      color: isPositive
+                                          ? Colors.green[700]
+                                          : Colors.red[700],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Collected: \$${totalCollected.toStringAsFixed(2)}  |  Expenses: \$${totalExpenses.toStringAsFixed(2)}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: Colors.grey[600]),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -187,8 +230,8 @@ class _TransactionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = txn.isCollection ? Colors.green : Colors.red;
-    final sign  = txn.isCollection ? '+' : '-';
-    final date  = DateFormat('MMM d, yyyy').format(txn.date);
+    final sign = txn.isCollection ? '+' : '-';
+    final date = DateFormat('MMM d, yyyy').format(txn.date);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -208,17 +251,17 @@ class _TransactionRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(txn.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  txn.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 Text(date, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
           Text(
             '$sign\$${txn.amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),

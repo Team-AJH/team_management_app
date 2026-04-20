@@ -8,7 +8,6 @@ import '../../backend/repositories/event_repository.dart';
 import '../../backend/repositories/tracker_repository.dart';
 import '../../backend/models/group.dart';
 import '../../backend/models/event.dart';
-import '../../backend/models/group_member.dart';
 import '../../backend/models/payment_tracker.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -87,12 +86,12 @@ class DashboardPage extends StatelessWidget {
               return Column(
                 children: [
                   GridView.count(
-                    crossAxisCount: 3,
+                    crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
-                    childAspectRatio: 1.5,
+                    childAspectRatio: 1.8,
                     children: [
                       // Next Game
                       StreamBuilder<List<Event>>(
@@ -101,47 +100,29 @@ class DashboardPage extends StatelessWidget {
                           listen: false,
                         ).getEventsForGroup(group.id),
                         builder: (context, eventSnap) {
-                          String nextGameValue = 'No Upcoming Events';
+                          String cardTitle = 'Next Event';
+                          String nextGameValue = 'None';
                           if (eventSnap.hasData && eventSnap.data!.isNotEmpty) {
                             final now = DateTime.now();
                             final upcoming = eventSnap.data!
-                                .where((e) => e.eventDate.isAfter(now))
+                                .where((e) => e.eventDate.isAfter(now) && e.status == 'scheduled')
                                 .toList();
                             if (upcoming.isNotEmpty) {
                               upcoming.sort(
                                 (a, b) => a.eventDate.compareTo(b.eventDate),
                               );
-                              nextGameValue = DateFormat(
-                                'EEE, h:mm a',
-                              ).format(upcoming.first.eventDate);
+                              final nextEvent = upcoming.first;
+                              cardTitle = 'Next: ${DateFormat('MMM d, h:mm a').format(nextEvent.eventDate)}';
+                              nextGameValue = nextEvent.title;
                             }
                           }
                           return _DashboardCard(
-                            title: 'Next Event',
+                            title: cardTitle,
                             value: nextGameValue,
                             icon: Icons.calendar_month,
-                          );
-                        },
-                      ),
-
-                      // Total Players
-                      StreamBuilder<List<GroupMember>>(
-                        stream: Provider.of<GroupRepository>(
-                          context,
-                          listen: false,
-                        ).getGroupMembers(group.id),
-                        builder: (context, memberSnap) {
-                          String playersValue = '0';
-                          if (memberSnap.hasData) {
-                            playersValue = '${memberSnap.data!.length}';
-                          }
-                          return _DashboardCard(
-                            title: 'Total Players',
-                            value: playersValue,
-                            icon: Icons.group,
                             onTap: () {
                               if (onNavigate != null) {
-                                onNavigate!(3); // Index 3 is Roster Management
+                                onNavigate!(7); // Index 7 is Events
                               }
                             },
                           );

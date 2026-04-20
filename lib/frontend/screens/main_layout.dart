@@ -22,6 +22,7 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
+  late final List<Widget> _pages;
 
   void _navigate(int index) {
     setState(() {
@@ -29,18 +30,23 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
-  List<Widget> get _pages => [
-    DashboardPage(onNavigate: _navigate), // 0
-    const MessagesPage(),                 // 1
-    const NotificationsPage(),            // 2
-    const RosterPage(),                   // 3
-    const ExpensesPage(),                 // 4
-    const AdminDashboardPage(),           // 5
-    const BrowseGroupsPage(),             // 6
-    const EventsPage(),                   // 7
-    const PlayerRatingsPage(),            // 8
-    const AnnouncementsPage(),            // 9
-  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      DashboardPage(onNavigate: _navigate), // 0
+      const MessagesPage(),                 // 1
+      const NotificationsPage(),            // 2
+      const RosterPage(),                   // 3
+      const ExpensesPage(),                 // 4
+      const AdminDashboardPage(),           // 5
+      const BrowseGroupsPage(),             // 6
+      const EventsPage(),                   // 7
+      const PlayerRatingsPage(),            // 8
+      const AnnouncementsPage(),            // 9
+    ];
+  }
 
   final List<String> _titles = [
     'Dashboard',

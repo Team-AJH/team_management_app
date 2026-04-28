@@ -13,7 +13,7 @@ import '../../backend/repositories/event_repository.dart';
 import '../../backend/repositories/tracker_repository.dart';
 import '../../backend/services/group_management_service.dart';
 import 'create_event_page.dart';
-import 'admin_event_detail_page.dart';
+import 'event_detail_page.dart';
 import 'team_generation_page.dart';
 
 class AdminGroupDashboardPage extends StatelessWidget {
@@ -358,7 +358,7 @@ class AdminGroupDashboardPage extends StatelessWidget {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => AdminEventDetailPage(
+                            builder: (_) => EventDetailPage(
                               event: event,
                               groupId: group.id,
                             ),

@@ -28,13 +28,17 @@ class UserRepository {
         if (uid != currentUserId && !knownUids.contains(uid)) {
           knownUids.add(uid);
           final data = memberDoc.data();
-          knownUsers.add(AppUser(
-            uid: uid,
-            email: data['email'] ?? '', // Email might not be in member doc, but we do our best
-            displayName: data['displayName'] ?? 'Unknown User',
-            status: 'active',
-            createdAt: DateTime.now(), // Fallback if necessary
-          ));
+          knownUsers.add(
+            AppUser(
+              uid: uid,
+              email:
+                  data['email'] ??
+                  '', // Email might not be in member doc, but we do our best
+              displayName: data['displayName'] ?? 'Unknown User',
+              status: 'active',
+              createdAt: DateTime.now(), // Fallback if necessary
+            ),
+          );
         }
       }
     }

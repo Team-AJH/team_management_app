@@ -14,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'backend/repositories/group_repository.dart';
 import 'backend/repositories/chat_repository.dart';
 import 'backend/repositories/event_repository.dart';
+import 'backend/repositories/announcement_repository.dart';
 import 'backend/repositories/tracker_repository.dart';
 import 'backend/repositories/transaction_repository.dart';
 import 'backend/repositories/user_repository.dart';
@@ -30,6 +31,7 @@ void main() async {
         Provider(create: (_) => GroupRepository()),
         Provider(create: (_) => ChatRepository()),
         Provider(create: (_) => EventRepository()),
+        Provider(create: (_) => AnnouncementRepository()),
         Provider(create: (_) => TrackerRepository()),
         Provider(create: (_) => TransactionRepository()),
         Provider(create: (_) => UserRepository()),

@@ -1,0 +1,195 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ======================================================================
+    // CORE FUNCTIONS
+    // ======================================================================
+
+    // Checks if the request is an authenticated user
+    function isAuthUser() {
+      return request.auth != null;
+    }
+
+    // Checks if the request is/has the same userUid
+    function isSameUser(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Checks if the user is a group Admin for a specific group
+    function isGroupAdmin(groupId) {
+      // Based on GroupManagementService, 'members' is a subcollection referencing the groupId, and role enum is 'admin'
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Checks if the user is a Payment Manager for a specific group
+    function isPaymentManager(groupId) {
+      // Based on GroupManagementService, 'members' is a subcollection referencing the groupId, and role enum is 'paymentManager'
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == 'paymentManager';
+    }
+
+    // ======================================================================
+    // USER SERVICE
+    // ======================================================================
+    match /users/{userId} {
+      // 1. Create: Must be authenticated and creating their own document.
+      // Cannot write 'uid'. They can initialize 'globalRole', but it must be strictly 'user'.
+      allow create: if isAuthUser() && isSameUser(userId)
+                    && (!('globalRole' in request.resource.data) || request.resource.data.globalRole == 'user')
+                    && !request.resource.data.keys().hasAny(['uid'])
+                    && request.resource.data.keys().hasOnly(['email', 'displayName', 'status', 'createdAt', 'globalRole']);
+                    
+      // 2. get: Can get their own document (email, displayName, status, etc.).
+      allow get: if isAuthUser() && isSameUser(userId);
+      
+      // 3. Update: Can modify ONLY displayName and status of their own document.
+      allow update: if isAuthUser() && isSameUser(userId) 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'status']);
+                    
+      // 4. Delete: Can delete their own document.
+      allow delete: if isAuthUser() && isSameUser(userId);
+    }
+
+    // ======================================================================
+    // DIRECT MESSAGES (CHAT SERVICE)
+    // ======================================================================
+    match /directMessages/{threadId} {
+      // 1. Create: allowed if user is in the participants array they are setting
+      allow create: if isAuthUser() && (request.auth.uid in request.resource.data.participants);
+      
+      // 2. Read, Update: allowed if user is already one of the participants
+      allow read, update: if isAuthUser() && (request.auth.uid in resource.data.participants);
+      
+      // 3. Delete: usually disabled for data retention, or require both to delete
+      allow delete: if false;
+
+      // Subcollection for the actual messages inside the thread
+      match /messages/{messageId} {
+        // Read: if the user is a participant of the parent thread
+        allow read: if isAuthUser() && (request.auth.uid in get(/databases/$(database)/documents/directMessages/$(threadId)).data.participants);
+        
+        // Create: if user is participant of thread and they are the sender
+        allow create: if isAuthUser() 
+                      && (request.auth.uid in get(/databases/$(database)/documents/directMessages/$(threadId)).data.participants)
+                      && request.resource.data.senderId == request.auth.uid;
+                      
+        allow update, delete: if false;
+      }
+    }
+
+    // ======================================================================
+    // GROUP MANAGEMENT SERVICE
+    // ======================================================================
+    match /groups/{groupId} {
+      // Group metadata (name, description, paymentDueDate, adminUid, etc.)
+      
+      // Anyone authenticated can create a group, provided they set themselves as the adminUid.
+      allow create: if isAuthUser() && request.resource.data.adminUid == request.auth.uid;
+      
+      // Only existing members can view the group details.
+      allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+      
+      // Only group admins can modify or delete the group.
+      allow update, delete: if isGroupAdmin(groupId);
+
+      // ====================================================================
+      // CHAT SERVICE
+      // ====================================================================
+      match /messages/{messageId} {
+        // All group members can read a message
+        allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+        
+        // Only the admin of the group can create a chat (message)
+        allow create: if isGroupAdmin(groupId);
+        
+        // Nobody can modify any message
+        allow update: if false;
+        
+        // Nobody can delete a message
+        allow delete: if false;
+      }
+
+      // ====================================================================
+      // TRACKER SERVICE
+      // ====================================================================
+      match /paymentTrackers/{trackerId} {
+        // Admins can read all trackers, users can read their own trackers
+        allow read: if isGroupAdmin(groupId) || (isAuthUser() && resource.data.userUid == request.auth.uid);
+        
+        // Only admin can create or modify trackers
+        allow create, update: if isGroupAdmin(groupId);
+        
+        // No one can delete trackers
+        allow delete: if false;
+      }
+
+      // ====================================================================
+      // ANNOUNCEMENT SERVICE
+      // ====================================================================
+      match /announcements/{announcementId} {
+        // Any group member can read announcements
+        allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+        
+        // Only group admins can create announcements. Enforcing that createdBy matches the admin's uid.
+        allow create: if isGroupAdmin(groupId) && request.resource.data.createdBy == request.auth.uid;
+        
+        // Only admins can update or delete announcements
+        allow update, delete: if isGroupAdmin(groupId);
+      }
+
+      // ====================================================================
+      // TRANSACTION SERVICE
+      // ====================================================================
+      match /transactions/{transactionId} {
+        // Any group member can read transactions (financial transparency)
+        allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+        
+        // Only group admins and payment managers can manage transactions
+        allow create, update, delete: if isGroupAdmin(groupId) || isPaymentManager(groupId);
+      }
+
+      // ====================================================================
+      // EVENT SERVICE
+      // ====================================================================
+      match /events/{eventId} {
+        // Any group member can read events
+        allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+        
+        // Only admins can create, update, delete events
+        allow create, update, delete: if isGroupAdmin(groupId);
+
+        // Participants subcollection
+        match /participants/{participantId} {
+          // Any group member can see who is attending the event
+          allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+          
+          // Users can join the event (create doc) or leave (delete doc) ONLY for themselves. Admins can also manage.
+          allow create, delete: if isGroupAdmin(groupId) || (isAuthUser() && isSameUser(participantId));
+          
+          allow update: if isGroupAdmin(groupId);
+        }
+      }
+
+      // Subcollection: Members
+      match /members/{memberId} {
+        // Group members can read the member list to see who is in the group
+        allow read: if exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+        
+        // Members CANNOT update their own roles or other members. ONLY admins can add/update/delete members.
+        // Exception for creation: when a user first builds a group, they are not an admin in the subcollection yet,
+        // so we must allow them to insert themselves IF they are the adminUid of the parent group document!
+        allow create: if isGroupAdmin(groupId) 
+                      || (isSameUser(memberId) && get(/databases/$(database)/documents/groups/$(groupId)).data.adminUid == request.auth.uid);
+                      
+        allow update, delete: if isGroupAdmin(groupId);
+
+        allow delete: if isSameUser(memberId);
+      }
+    }
+  }
+}

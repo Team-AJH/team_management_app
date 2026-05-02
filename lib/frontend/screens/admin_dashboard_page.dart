@@ -139,13 +139,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: InkWell(
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => AdminGroupDashboardPage(group: group),
                         ),
                       );
+                      if (mounted) {
+                        _loadManagedGroups();
+                      }
                     },
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),

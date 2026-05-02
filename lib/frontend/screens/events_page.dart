@@ -9,6 +9,7 @@ import '../../backend/models/group_member.dart';
 import '../../backend/models/event_participant.dart';
 import '../../backend/repositories/group_repository.dart';
 import '../../backend/repositories/event_repository.dart';
+import 'event_detail_page.dart';
 
 class EventsPage extends StatelessWidget {
   const EventsPage({super.key});
@@ -28,14 +29,14 @@ class EventsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Upcoming Events',
+            'All Events',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Events from all your groups.',
+            'All past and upcoming events from your groups.',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Colors.grey[600],
             ),
@@ -84,11 +85,9 @@ class _AllGroupsEventsList extends StatelessWidget {
         return StreamBuilder<List<Event>>(
           stream: eventRepo.getEventsForGroup(group.id),
           builder: (context, eventSnap) {
-            final now = DateTime.now();
             final events = (eventSnap.data ?? [])
-                .where((e) => e.eventDate.isAfter(now) && e.status == 'scheduled')
                 .toList()
-              ..sort((a, b) => a.eventDate.compareTo(b.eventDate));
+              ..sort((a, b) => b.eventDate.compareTo(a.eventDate));
 
             if (events.isEmpty) return const SizedBox.shrink();
 
@@ -188,6 +187,57 @@ class _EventCard extends StatelessWidget {
     }
   }
 
+  void _showParticipants(BuildContext context, List<EventParticipant> participants) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Participants (${participants.length})',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              if (participants.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No participants yet.'),
+                )
+              else
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: participants.length,
+                    itemBuilder: (context, index) {
+                      final p = participants[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          foregroundColor: Colors.white,
+                          child: Text(
+                            p.displayName.isNotEmpty ? p.displayName[0].toUpperCase() : '?',
+                          ),
+                        ),
+                        title: Text(p.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Joined: ${DateFormat('MMM d, yyyy • h:mm a').format(p.joinedAt)}'),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateStr = DateFormat('EEE, MMM d • h:mm a').format(event.eventDate);
@@ -195,10 +245,20 @@ class _EventCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => EventDetailPage(event: event, groupId: group.id),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -261,11 +321,19 @@ class _EventCard extends StatelessWidget {
 
                 return Row(
                   children: [
-                    Text(
-                      '${participants.length} / ${event.maxPlayers} players',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isFull ? Colors.red : Colors.grey[600],
-                        fontWeight: FontWeight.w600,
+                    TextButton.icon(
+                      onPressed: () => _showParticipants(context, participants),
+                      icon: const Icon(Icons.people, size: 16),
+                      label: Text(
+                        '${participants.length} / ${event.maxPlayers} players',
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: isFull ? Colors.red : Theme.of(context).primaryColor,
+                        backgroundColor: (isFull ? Colors.red : Theme.of(context).primaryColor).withValues(alpha: 0.1),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                     const Spacer(),
@@ -301,6 +369,7 @@ class _EventCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

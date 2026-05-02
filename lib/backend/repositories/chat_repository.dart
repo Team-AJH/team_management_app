@@ -33,7 +33,7 @@ class ChatRepository {
         .collection('groups')
         .doc(groupId)
         .collection('messages')
-        .orderBy('createdAt', descending: false)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => ChatMessage.fromMap(doc.data())).toList());
@@ -87,7 +87,7 @@ class ChatRepository {
         .collection('directMessages')
         .doc(threadId)
         .collection('messages')
-        .orderBy('createdAt', descending: false)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => ChatMessage.fromMap(doc.data())).toList());

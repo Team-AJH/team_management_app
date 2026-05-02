@@ -4,7 +4,6 @@ import '../../backend/services/firebase/auth_service.dart';
 import '../theme/theme_model.dart';
 import 'dashboard_page.dart';
 import 'notifications_page.dart';
-import 'roster_page.dart';
 import 'expenses_page.dart';
 import 'messages_page.dart';
 import 'admin_dashboard_page.dart';
@@ -38,13 +37,12 @@ class _MainLayoutState extends State<MainLayout> {
       DashboardPage(onNavigate: _navigate), // 0
       const MessagesPage(),                 // 1
       const NotificationsPage(),            // 2
-      const RosterPage(),                   // 3
-      const ExpensesPage(),                 // 4
-      const AdminDashboardPage(),           // 5
-      const BrowseGroupsPage(),             // 6
-      const EventsPage(),                   // 7
-      const PlayerRatingsPage(),            // 8
-      const AnnouncementsPage(),            // 9
+      const ExpensesPage(),                 // 3
+      const AdminDashboardPage(),           // 4
+      const BrowseGroupsPage(),             // 5
+      const EventsPage(),                   // 6
+      const PlayerRatingsPage(),            // 7
+      const AnnouncementsPage(),            // 8
     ];
   }
 
@@ -52,7 +50,6 @@ class _MainLayoutState extends State<MainLayout> {
     'Dashboard',
     'Messages',
     'Notifications',
-    'Roster Management',
     'Team Expenses',
     'Admin Dashboard',
     'Browse Groups',
@@ -147,23 +144,23 @@ class _MainLayoutState extends State<MainLayout> {
             _DrawerItem(
               icon: Icons.explore,
               label: 'Browse Groups',
+              index: 5,
+              selected: _selectedIndex,
+              onTap: () => _selectIndex(5),
+            ),
+            _DrawerItem(
+              icon: Icons.event,
+              label: 'Events',
               index: 6,
               selected: _selectedIndex,
               onTap: () => _selectIndex(6),
             ),
             _DrawerItem(
-              icon: Icons.event,
-              label: 'Events',
-              index: 7,
-              selected: _selectedIndex,
-              onTap: () => _selectIndex(7),
-            ),
-            _DrawerItem(
               icon: Icons.campaign,
               label: 'Announcements',
-              index: 9,
+              index: 8,
               selected: _selectedIndex,
-              onTap: () => _selectIndex(9),
+              onTap: () => _selectIndex(8),
             ),
 
             const Divider(),
@@ -183,34 +180,27 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ),
             _DrawerItem(
-              icon: Icons.group,
-              label: 'Roster Management',
-              index: 3,
-              selected: _selectedIndex,
-              onTap: () => _selectIndex(3),
-            ),
-            _DrawerItem(
               icon: Icons.star,
               label: 'Player Ratings',
-              index: 8,
+              index: 7,
               selected: _selectedIndex,
-              onTap: () => _selectIndex(8),
+              onTap: () => _selectIndex(7),
             ),
             _DrawerItem(
               icon: Icons.attach_money,
               label: 'Team Expenses',
-              index: 4,
+              index: 3,
               selected: _selectedIndex,
-              onTap: () => _selectIndex(4),
+              onTap: () => _selectIndex(3),
             ),
 
             const Divider(),
             _DrawerItem(
               icon: Icons.admin_panel_settings,
               label: 'Admin Dashboard',
-              index: 5,
+              index: 4,
               selected: _selectedIndex,
-              onTap: () => _selectIndex(5),
+              onTap: () => _selectIndex(4),
             ),
 
             const Spacer(),

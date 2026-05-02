@@ -45,7 +45,11 @@ class GroupRepository {
 
     for (var member in additionalMembers) {
       final uid = member['uid']!;
-      final displayName = member['displayName'] ?? 'Unknown';
+      
+      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final displayName = userDoc.exists && userDoc.data() != null 
+          ? userDoc.data()!['displayName'] ?? member['displayName'] ?? 'Unknown'
+          : member['displayName'] ?? 'Unknown';
       
       final m = GroupMember(
         userId: uid,
@@ -79,5 +83,37 @@ class GroupRepository {
         .collection('members')
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => GroupMember.fromMap(doc.data())).toList());
+  }
+
+  Future<void> deleteGroup(String groupId) async {
+    final groupRef = _firestore.collection('groups').doc(groupId);
+
+    // Helper to delete all documents in a subcollection
+    Future<void> deleteSubcollection(String collectionName) async {
+      final snapshot = await groupRef.collection(collectionName).get();
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    }
+
+    // Delete subcollections
+    await deleteSubcollection('members');
+    await deleteSubcollection('announcements');
+    await deleteSubcollection('messages');
+    await deleteSubcollection('transactions');
+    await deleteSubcollection('paymentTrackers');
+
+    // Delete events and their participants
+    final eventsSnapshot = await groupRef.collection('events').get();
+    for (var doc in eventsSnapshot.docs) {
+      final participantsSnapshot = await doc.reference.collection('participants').get();
+      for (var pDoc in participantsSnapshot.docs) {
+        await pDoc.reference.delete();
+      }
+      await doc.reference.delete();
+    }
+
+    // Finally delete the main group document
+    await groupRef.delete();
   }
 }

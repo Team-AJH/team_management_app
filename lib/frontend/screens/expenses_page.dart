@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../backend/repositories/group_repository.dart';
 import '../../backend/repositories/transaction_repository.dart';
 import '../../backend/models/transaction_model.dart';
@@ -147,15 +149,49 @@ class _GroupExpensesCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.add_shopping_cart),
-                  tooltip: 'Record Payment',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PaymentSubmissionPage(groupId: group.id),
-                    ),
-                  ),
+                StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('groups')
+                      .doc(group.id)
+                      .collection('members')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .snapshots(),
+                  builder: (context, memberSnap) {
+                    bool isAdmin = false;
+                    if (memberSnap.hasData && memberSnap.data!.exists) {
+                      final role = memberSnap.data!.get('role') as String?;
+                      isAdmin = role == 'admin';
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (isAdmin)
+                          IconButton(
+                            icon: const Icon(Icons.add_shopping_cart),
+                            tooltip: 'Record Payment',
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PaymentSubmissionPage(groupId: group.id),
+                              ),
+                            ),
+                          ),
+                        if (group.paymentLink != null && group.paymentLink!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: ElevatedButton.icon(
+                              onPressed: () => _launchPaymentUrl(context, group.paymentLink!),
+                              icon: const Icon(Icons.payment, size: 18),
+                              label: const Text('Pay'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -220,6 +256,25 @@ class _GroupExpensesCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _launchPaymentUrl(BuildContext context, String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch payment link.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invalid link: $e')),
+        );
+      }
+    }
   }
 }
 

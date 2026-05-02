@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../backend/repositories/group_repository.dart';
 import '../../backend/repositories/user_repository.dart';
 import '../../backend/models/app_user.dart';
+import '../../backend/data/user_data.dart';
 
 class CreateGroupPage extends StatefulWidget {
   const CreateGroupPage({super.key});
@@ -68,12 +69,14 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       }).toList();
 
       final groupRepo = Provider.of<GroupRepository>(context, listen: false);
+      final appUser = await UserData().getUserById(user.uid);
+
       await groupRepo.createGroup(
         name: name,
         description: description,
         sportType: sport,
         creatorUserId: user.uid,
-        creatorDisplayName: user.displayName ?? 'Creator',
+        creatorDisplayName: appUser?.displayName ?? user.displayName ?? 'Creator',
         additionalMembers: additionalMembers,
       );
 
@@ -163,7 +166,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
 
                                 return CheckboxListTile(
                                   title: Text(user.displayName),
-                                  subtitle: user.email.isNotEmpty ? Text(user.email) : null,
                                   value: isSelected,
                                   onChanged: (bool? value) {
                                     setState(() {

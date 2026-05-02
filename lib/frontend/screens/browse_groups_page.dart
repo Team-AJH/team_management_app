@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../backend/models/group.dart';
 import '../../backend/models/group_member.dart';
+import '../../backend/data/user_data.dart';
 
 class BrowseGroupsPage extends StatefulWidget {
   const BrowseGroupsPage({super.key});
@@ -27,7 +28,8 @@ class _BrowseGroupsPageState extends State<BrowseGroupsPage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final displayName = user.displayName ?? user.email ?? 'Unknown';
+    final appUser = await UserData().getUserById(user.uid);
+    final displayName = appUser?.displayName ?? user.displayName ?? user.email ?? 'Unknown';
     final now = DateTime.now();
     final groupRef = _firestore.collection('groups').doc(group.id);
     final memberRef = groupRef.collection('members').doc(user.uid);

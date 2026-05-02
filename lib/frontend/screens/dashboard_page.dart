@@ -63,7 +63,7 @@ class DashboardPage extends StatelessWidget {
               _buildSectionHeader(
                 context,
                 'Upcoming Events',
-                onTap: () => onNavigate?.call(7),
+                onTap: () => onNavigate?.call(6),
               ),
               const SizedBox(height: 16),
               _buildEventsHorizontalList(context, groups, eventRepo),
@@ -74,7 +74,7 @@ class DashboardPage extends StatelessWidget {
               _buildSectionHeader(
                 context,
                 'Group Balances',
-                onTap: () => onNavigate?.call(4),
+                onTap: () => onNavigate?.call(3),
               ),
               const SizedBox(height: 16),
               _buildGroupBalancesList(context, groups, txnRepo),
@@ -85,7 +85,7 @@ class DashboardPage extends StatelessWidget {
               _buildSectionHeader(
                 context,
                 'Recent Announcements',
-                onTap: () => onNavigate?.call(9),
+                onTap: () => onNavigate?.call(8),
               ),
               const SizedBox(height: 16),
               _buildAnnouncementsList(context, groups, announcementRepo),
@@ -122,7 +122,7 @@ class DashboardPage extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: () => onNavigate?.call(6), // Browse Groups
+              onPressed: () => onNavigate?.call(5), // Browse Groups
               child: const Text("Explore Teams"),
             ),
           ],

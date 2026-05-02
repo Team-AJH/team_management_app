@@ -374,7 +374,7 @@ class _RatingsList extends StatelessWidget {
                           const Text('No ratings yet', style: TextStyle(color: Colors.grey)),
                       ],
                     ),
-                    trailing: isAdmin && member.userId != currentUid
+                    trailing: member.userId != currentUid
                         ? IconButton(
                             icon: Icon(
                               myExisting != null ? Icons.edit : Icons.star_outline,

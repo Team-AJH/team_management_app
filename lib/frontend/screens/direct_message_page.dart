@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../backend/repositories/chat_repository.dart';
 import '../../backend/models/chat_message.dart';
 import '../../backend/models/app_user.dart';
+import '../../backend/data/user_data.dart';
 
 class DirectMessagePage extends StatefulWidget {
   final AppUser otherUser;
@@ -35,16 +36,17 @@ class _DirectMessagePageState extends State<DirectMessagePage> {
     if (me == null) return;
 
     final chatRepo = Provider.of<ChatRepository>(context, listen: false);
+    final appUser = await UserData().getUserById(me.uid);
     try {
       await chatRepo.sendDirectMessage(
         fromUid: me.uid,
-        fromName: me.displayName ?? 'Me',
+        fromName: appUser?.displayName ?? me.displayName ?? 'Me',
         toUid: widget.otherUser.uid,
         text: text,
       );
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 100,
+          0.0,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -120,6 +122,7 @@ class _DirectMessagePageState extends State<DirectMessagePage> {
 
                       return ListView.builder(
                         controller: _scrollController,
+                        reverse: true,
                         itemCount: messages.length,
                         padding: const EdgeInsets.all(16),
                         itemBuilder: (context, index) {

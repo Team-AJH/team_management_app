@@ -148,7 +148,6 @@ class _DirectChatsTab extends StatelessWidget {
               ),
               title: Text(other.displayName,
                   style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: other.email.isNotEmpty ? Text(other.email) : null,
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,

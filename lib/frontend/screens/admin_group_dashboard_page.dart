@@ -134,6 +134,25 @@ class AdminGroupDashboardPage extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
+            // ── Payment Settings ──────────────────────────────────────────
+            Text(
+              'Payment Settings',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.link, color: Colors.blue),
+                title: const Text('Payment Link'),
+                subtitle: Text(group.paymentLink?.isNotEmpty == true ? group.paymentLink! : 'Not set (e.g. Venmo/PayPal)'),
+                trailing: const Icon(Icons.edit),
+                onTap: () => _editPaymentLink(context),
+              ),
+            ),
+            const SizedBox(height: 32),
+
             // ── Manage Members ────────────────────────────────────────────
             Text(
               'Manage Members',
@@ -421,11 +440,114 @@ class AdminGroupDashboardPage extends StatelessWidget {
                 color: Colors.grey[600],
               ),
             ),
+            // ── Danger Zone ───────────────────────────────────────────────
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.05),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Danger Zone',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Deleting a team is permanent and cannot be undone. All members, events, announcements, and payment trackers will be permanently removed.',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _deleteTeam(context),
+                      icon: const Icon(Icons.delete_forever),
+                      label: const Text('Delete Team'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _deleteTeam(BuildContext context) async {
+    final groupRepo = Provider.of<GroupRepository>(context, listen: false);
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Team?', style: TextStyle(color: Colors.red)),
+        content: Text(
+          'Are you absolutely sure you want to delete ${group.name}? This action cannot be undone and will remove all members, events, and data associated with this team.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes, Delete Team'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      await groupRepo.deleteGroup(group.id);
+
+      if (context.mounted) {
+        Navigator.pop(context); // pop loading dialog
+        Navigator.of(context).popUntil((route) => route.isFirst); // pop to dashboard
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Team successfully deleted.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // pop loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error deleting team: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _promoteToAdmin(
@@ -574,6 +696,55 @@ class AdminGroupDashboardPage extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> _editPaymentLink(BuildContext context) async {
+    final controller = TextEditingController(text: group.paymentLink);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Payment Link'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'https://venmo.com/u/...',
+            labelText: 'Payment URL',
+          ),
+          keyboardType: TextInputType.url,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('groups')
+            .doc(group.id)
+            .update({'paymentLink': controller.text.trim()});
+            
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Payment link updated successfully.')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating payment link: $e')),
+          );
+        }
       }
     }
   }

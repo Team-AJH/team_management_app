@@ -6,6 +6,7 @@ import '../../backend/repositories/chat_repository.dart';
 import '../../backend/models/chat_message.dart';
 import '../../backend/models/group.dart';
 import '../../backend/models/group_member.dart';
+import '../../backend/data/user_data.dart';
 
 class ChatPage extends StatefulWidget {
   final Group group;
@@ -40,11 +41,12 @@ class _ChatPageState extends State<ChatPage> {
     if (user == null) return;
     
     final chatRepo = Provider.of<ChatRepository>(context, listen: false);
+    final appUser = await UserData().getUserById(user.uid);
     
     final member = GroupMember(
       userId: user.uid,
       groupId: widget.group.id,
-      displayName: user.displayName ?? 'User',
+      displayName: appUser?.displayName ?? user.displayName ?? 'User',
       role: 'member',
       joinedAt: DateTime.now(),
     );

@@ -27,14 +27,26 @@ class UserRepository {
         final uid = memberDoc.id; // member document ID is typically the uid
         if (uid != currentUserId && !knownUids.contains(uid)) {
           knownUids.add(uid);
-          final data = memberDoc.data();
+          
+          final userDoc = await _firestore.collection('users').doc(uid).get();
+          String displayName = 'Unknown User';
+          String email = '';
+          
+          if (userDoc.exists && userDoc.data() != null) {
+            final uData = userDoc.data()!;
+            displayName = uData['displayName'] ?? displayName;
+            email = uData['email'] ?? email;
+          } else {
+            final data = memberDoc.data();
+            displayName = data['displayName'] ?? displayName;
+            email = data['email'] ?? email;
+          }
+
           knownUsers.add(
             AppUser(
               uid: uid,
-              email:
-                  data['email'] ??
-                  '', // Email might not be in member doc, but we do our best
-              displayName: data['displayName'] ?? 'Unknown User',
+              email: email,
+              displayName: displayName,
               status: 'active',
               createdAt: DateTime.now(), // Fallback if necessary
             ),

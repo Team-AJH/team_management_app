@@ -1,3 +1,3 @@
 # Sports Management App
 
-This project is a web-based team coordination and notification platform designed to provide a secure, centralized space for communication, task updates, and payment tracking. The system improves productivity by eliminating fragmented tools and providing a single, reliable source of truth. Users will benefit from real-time updates, secure authentication, and a personalized dashboard experience.
+This project is a team coordination and notification platform designed to provide a secure, centralized space for communication, task updates, and payment tracking. The system improves productivity by eliminating fragmented tools and providing a single, reliable source of truth. Users will benefit from real-time updates, secure authentication, and a personalized dashboard experience.

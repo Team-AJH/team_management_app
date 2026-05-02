@@ -353,6 +353,10 @@ class DashboardPage extends StatelessWidget {
           ),
         );
 
+        if (allEvents.isNotEmpty) {
+          allEvents.removeAt(0); // Exclude the next event, as it's already shown above
+        }
+
         if (allEvents.isEmpty) {
           return _buildEmptySection('No upcoming events');
         }
